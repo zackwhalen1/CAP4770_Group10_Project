@@ -6,6 +6,10 @@ from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.preprocessing import LabelEncoder
 import os
 
+#runtime A
+import time
+start_time = time.time()
+
 os.makedirs('visualizations', exist_ok=True)
 
 file_path = "winemag-data-130k-v2.csv"
@@ -97,3 +101,8 @@ for name, model in models.items():
     plt.tight_layout()
     plt.savefig(f"visualizations/{name.replace(' ', '_')}_confusion_matrix.png")
     plt.close()
+
+#runtime B
+end_time = time.time()
+print(f"\nRuntime: {end_time - start_time:.2f} seconds")
+   
