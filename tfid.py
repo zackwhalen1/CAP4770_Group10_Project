@@ -40,3 +40,60 @@ x = vectorizer.fit_transform(df['description'])
 #tfidf_df = pd.DataFrame(x.toarray(), columns=vectorizer.get_feature_names_out())
 #tfidf_df.to_excel('visualizations/tfidf_matrix.xlsx', index=False)
 #print("Saved TF-IDF matrix to visualizations/tfidf_matrix.xlsx")
+
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import f1_score
+
+# Keep only the top N most common wine varieties
+print("Number of total wine varieties: ")
+print(df['variety'].nunique())
+
+top_n = 20
+top_varieties = df['variety'].value_counts().nlargest(top_n).index
+df = df[df['variety'].isin(top_varieties)]
+
+# Re-encode labels and TF-IDF after filtering
+y = label_encoder.fit_transform(df['variety'])
+x = vectorizer.fit_transform(df['description'])
+
+# Splitting the data into training and testing sets (80% train, 20% test)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, stratify=y, random_state=42)
+
+#Training/initializing the models
+model_MNB = MultinomialNB().fit(x_train, y_train)
+model_RF = RandomForestClassifier(n_estimators=20, random_state=42).fit(x_train, y_train)
+model_DTC = DecisionTreeClassifier().fit(x_train, y_train)
+
+#Model dictionary for for loop
+models = {
+    "Multinomial Naive Bayes": model_MNB,
+    "Random Forest": model_RF,
+    "Decision Tree": model_DTC
+}
+
+for name, model in models.items():
+    y_pred = model.predict(x_test)
+    error = 1 - accuracy_score(y_test, y_pred)
+    accuracy = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred, average='weighted')
+
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(confusion_matrix(y_test, y_pred), cmap="Blues",
+                xticklabels=label_encoder.classes_,
+                yticklabels=label_encoder.classes_,
+                annot=False, fmt='d')
+    plt.title(
+        f"{name} - Confusion Matrix\n"
+        f"Accuracy: {accuracy:.3f} | Error Rate: {error:.3f} | F1 Score: {f1:.3f}"
+    )
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.tight_layout()
+    plt.savefig(f"visualizations/{name.replace(' ', '_')}_confusion_matrix.png")
+    plt.close()
