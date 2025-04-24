@@ -6,6 +6,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, accuracy_score
 import joblib
 from sklearn.preprocessing import LabelEncoder
+from sklearn.utils.class_weight import compute_sample_weight
 import os
 
 def inference_model(description):
@@ -16,7 +17,7 @@ def inference_model(description):
     predicted_variety = loaded_encoder.inverse_transform(predicted_encoded)
     return predicted_variety[0]
 
-if not (os.path.exists('wine_variety_predictor_xgb.joblib') or os.path.exists('label_encoder.joblib')):
+if not (os.path.exists('wine_variety_predictor_xgb.joblib') and os.path.exists('label_encoder.joblib')):
     df = pd.read_csv('winemag-data-130k-v2.csv', index_col=0)
     df.dropna(subset=['description', 'variety'], inplace=True)
 
@@ -38,15 +39,17 @@ if not (os.path.exists('wine_variety_predictor_xgb.joblib') or os.path.exists('l
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
+    sample_weights = compute_sample_weight('balanced', y_train)
+
     pipeline = Pipeline([
         ('tfidf', TfidfVectorizer(stop_words='english', ngram_range=(1, 2), max_df=0.7)),
         # Uncomment to train on CPU
-         ('clf', XGBClassifier(eval_metric='mlogloss', random_state=42))
+        ('clf', XGBClassifier(eval_metric='mlogloss', random_state=42))
         #('clf', XGBClassifier(eval_metric='mlogloss', tree_method='approx', device="cuda", random_state=42))
     ])
 
     print("Training model...")
-    pipeline.fit(X_train, y_train)
+    pipeline.fit(X_train, y_train, clf__sample_weight=sample_weights)
     print("Model training complete.")
 
     print("Evaluating model on test data...")
