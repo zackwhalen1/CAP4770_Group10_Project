@@ -20,6 +20,7 @@ if not (os.path.exists('wine_variety_predictor_xgb.joblib') or os.path.exists('l
     df = pd.read_csv('winemag-data-130k-v2.csv', index_col=0)
     df.dropna(subset=['description', 'variety'], inplace=True)
 
+    #filter to top 20 varieties
     variety_counts = df['variety'].value_counts()
     top_n_varieties = variety_counts.nlargest(20).index
     df_filtered = df[df['variety'].isin(top_n_varieties)].copy()
@@ -40,8 +41,8 @@ if not (os.path.exists('wine_variety_predictor_xgb.joblib') or os.path.exists('l
     pipeline = Pipeline([
         ('tfidf', TfidfVectorizer(stop_words='english', ngram_range=(1, 2), max_df=0.7)),
         # Uncomment to train on CPU
-        # ('clf', XGBClassifier(eval_metric='mlogloss', random_state=42))
-        ('clf', XGBClassifier(eval_metric='mlogloss', tree_method='approx', device="cuda", random_state=42))
+         ('clf', XGBClassifier(eval_metric='mlogloss', random_state=42))
+        #('clf', XGBClassifier(eval_metric='mlogloss', tree_method='approx', device="cuda", random_state=42))
     ])
 
     print("Training model...")
@@ -57,6 +58,36 @@ if not (os.path.exists('wine_variety_predictor_xgb.joblib') or os.path.exists('l
     print(classification_report(y_test_labels, y_pred, labels=label_encoder.classes_, zero_division=0))
     accuracy = accuracy_score(y_test, y_pred_encoded)
     print(f"Overall Accuracy: {accuracy:.4f}")
+
+    #added confusion matrix graphic, like previous
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from sklearn.metrics import confusion_matrix
+    from sklearn.metrics import f1_score
+
+    error = 1 - accuracy
+    f1 = f1_score(y_test, y_pred_encoded, average='weighted')
+    cm = confusion_matrix(y_test, y_pred_encoded)
+
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(cm, cmap="Blues",
+                xticklabels=label_encoder.classes_,
+                yticklabels=label_encoder.classes_,
+                annot=False, fmt='d')
+    
+    plt.title(
+        f"XGBoost - Confusion Matrix\n"
+        f"Accuracy: {accuracy:.3f} | Error Rate: {error:.3f} | F1 Score: {f1:.3f}"
+    )
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.tight_layout()
+
+    #save graphic
+    os.makedirs("visualizations", exist_ok=True)
+    plt.savefig("visualizations/XGBoost_confusion_matrix.png")
+    plt.close()
+
 
     print("Saving model and vectorizer...")
     joblib.dump(pipeline, 'wine_variety_predictor_xgb.joblib')
